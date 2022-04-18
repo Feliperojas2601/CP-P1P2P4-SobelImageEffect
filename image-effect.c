@@ -4,12 +4,44 @@
 #include<stdlib.h>
 #include<unistd.h>
 
+// Declare STB_Image library
+
 #define STB_IMAGE_IMPLEMENTATION  
 #include "stb_image.h"  
 #define STB_IMAGE_WRITE_IMPLEMENTATION  
 #include "stb_image_write.h"  
 
-void* proccess_image(int number_thread) {
+// Create structure for arguments in pthread_create 
+
+struct pthread_args {
+	int pthread_number;
+	int channels;
+	size_t imgs_size;   
+	char* img_in; 
+	char* img_out; 
+	int pthreads; 
+};  
+
+void* proccess_image(void *args) {
+
+	// Destruct args
+
+	int pthread_number = ((struct pthread_args*) args)->pthread_number; 
+	int channels = ((struct pthread_args*) args)->channels;
+	size_t imgs_size = ((struct pthread_args*) args)->imgs_size;  
+	char *img_in = ((struct pthread_args*) args)->img_in; 
+	char *img_out = ((struct pthread_args*) args)->img_out; 
+	int pthreads = ((struct pthread_args*) args)->pthreads; 
+
+	int pad = imgs_size/pthreads;  
+
+	// Filter implementation
+
+	for(unsigned char *ii = img_in + (pad*pthread_number), *io = img_out + (pad*pthread_number); ii != img_in + (pad*(pthread_number+1)); ii += channels, io += channels) {
+		*io = (uint8_t) 2 * *ii;
+		*(io + 1) = (uint8_t) 2 * *(ii + 1);
+		*(io + 2) = (uint8_t) 2 * *(ii + 2);
+    }
 
 	return NULL;
 
@@ -37,7 +69,6 @@ int main(int argc, char* argv[]){
         printf("Error loading the image\n");
         return -1;
     }
-	printf("%d", channels);
 
 	// Declare size of images and use malloc to reserve memory of ouput image
 
@@ -48,25 +79,14 @@ int main(int argc, char* argv[]){
        exit(1);
     }
 
-	// Threads Logic ...
+	// Instance struct for pthread_create 
 
-	// Filter 
-
-	for(unsigned char *ii = img_in, *io = img_out; ii != img_in + imgs_size; ii += channels, io += channels) {
-        //*io = (uint8_t)(2*(*ii + *(ii + 1) + *(ii + 2)));
-		*io = (uint8_t) 2 * *ii;
-		*(io + 1) = (uint8_t) 2 * *(ii + 1);
-		*(io + 2) = (uint8_t) 2 * *(ii + 2);
-    }
-
-	// Write jgp image out 
-
-	stbi_write_jpg(img_path_out, width, height, channels, img_out, 100);
-
-	// Free from STB Library
-
-	stbi_image_free(img_in); 
-	stbi_image_free(img_out); 
+	struct pthread_args *args = (struct pthread_args *)malloc(sizeof(struct pthread_args));
+	args->img_in = img_in; 
+	args->img_out = img_out;   
+	args->channels = channels;
+	args->imgs_size = imgs_size;  
+	args->pthreads = number_pthreads; 
 
 	// Threads Logic
 
@@ -77,7 +97,8 @@ int main(int argc, char* argv[]){
 	for(int i = 0; i < number_pthreads; i++) {
 
 		i_pthreads[i] = i; 
-		error_pthread = pthread_create(&(pthreads[i]), NULL, proccess_image, (void*)&i_pthreads[i]);
+		args->pthread_number = i; 
+		error_pthread = pthread_create(&(pthreads[i]), NULL, proccess_image, (void*)args);
 		if (error_pthread != 0) {
 			printf("Error in thread creation \n");
 			return -1;
@@ -90,6 +111,15 @@ int main(int argc, char* argv[]){
 		pthread_join(pthreads[j], NULL);
 	
     }
+
+	// Write jgp image out 
+
+	stbi_write_jpg(img_path_out, width, height, channels, img_out, 100);
+
+	// Free from STB Library
+
+	stbi_image_free(img_in); 
+	stbi_image_free(img_out); 
 
   	return 0;
 
