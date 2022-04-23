@@ -1,4 +1,4 @@
 
 build:
-	gcc ./image-effect-openmp.c -o image-effect-openmp -fopenmp -lm
+	gcc ./image-effect.c -o image-effect -pthread -lm
 run: build

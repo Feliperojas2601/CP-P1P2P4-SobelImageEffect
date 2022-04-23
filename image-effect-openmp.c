@@ -61,8 +61,8 @@ int main(int argc, char *argv[] ) {
     			      ((sobel_y[2][0]*image[x*height-1+y+1])+ (sobel_y[2][1]* image[x*height+y+1]) + (sobel_y[2][2] * image[x*height+1+y+1]));
     		int val = ceil(sqrt((pixel_x*pixel_x)+(pixel_y*pixel_y)));
     		edge_image[x*height+y] = val;	
-    	}
-    }
+    	    }
+        }
 
     }
 

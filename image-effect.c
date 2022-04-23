@@ -11,12 +11,17 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION  
 #include "stb_image_write.h"  
 
+#define CHANNEL_NUM 1
+
+int sobel_x[3][3] = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+int sobel_y[3][3] = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+
 // Create structure for arguments in pthread_create 
 
 struct pthread_args {
 	int pthread_number;
-	int channels;
-	size_t imgs_size;   
+	int height; 
+	int width;   
 	char* img_in; 
 	char* img_out; 
 	int pthreads; 
@@ -26,22 +31,32 @@ void* proccess_image(void *args) {
 
 	// Destruct args
 
-	int pthread_number = ((struct pthread_args*) args)->pthread_number; 
-	int channels = ((struct pthread_args*) args)->channels;
-	size_t imgs_size = ((struct pthread_args*) args)->imgs_size;  
+	int pthread_number = ((struct pthread_args*) args)->pthread_number;
+	int width = ((struct pthread_args*) args)->width; 
+	int height = ((struct pthread_args*) args)->height; 
 	char *img_in = ((struct pthread_args*) args)->img_in; 
 	char *img_out = ((struct pthread_args*) args)->img_out; 
 	int pthreads = ((struct pthread_args*) args)->pthreads; 
 
-	int pad = imgs_size/pthreads;  
+	// Calculate division of image per thread 
 
-	// Filter implementation
+    int amount_work_x = (int)((width)/pthreads);
 
-	for(unsigned char *ii = img_in + (pad*pthread_number), *io = img_out + (pad*pthread_number); ii != img_in + (pad*(pthread_number+1)); ii += channels, io += channels) {
-		*io = (uint8_t) 2 * *ii;
-		*(io + 1) = (uint8_t) 2 * *(ii + 1);
-		*(io + 2) = (uint8_t) 2 * *(ii + 2);
-    }
+	// Filter implementation 
+
+	for(int x = (pthread_number * amount_work_x); x < (pthread_number * amount_work_x) + amount_work_x; x++) {
+    	for(int y = 1; y < height - 2; y++) {
+    		int pixel_x = ((sobel_x[0][0]*img_in[x*height-1+y-1])+ (sobel_x[0][1]* img_in[x*height+y-1]) + (sobel_x[0][2] * img_in[x*height+1+y-1]))+
+    			      ((sobel_x[1][0]*img_in[x*height-1+y])+ (sobel_x[1][1]* img_in[x*height+y]) + (sobel_x[1][2] * img_in[x*height+1+y]))+
+    			      ((sobel_x[2][0]*img_in[x*height-1+y+1])+ (sobel_x[2][1]* img_in[x*height+y+1]) + (sobel_x[2][2] * img_in[x*height+1+y+1]));
+    			      
+    	    int pixel_y = ((sobel_y[0][0]*img_in[x*height-1+y-1])+ (sobel_y[0][1]* img_in[x*height+y-1]) + (sobel_y[0][2] * img_in[x*height+1+y-1]))+
+    			      ((sobel_y[1][0]*img_in[x*height-1+y])+ (sobel_y[1][1]* img_in[x*height+y]) + (sobel_y[1][2] * img_in[x*height+1+y]))+
+    			      ((sobel_y[2][0]*img_in[x*height-1+y+1])+ (sobel_y[2][1]* img_in[x*height+y+1]) + (sobel_y[2][2] * img_in[x*height+1+y+1]));
+    		int val = ceil(sqrt((pixel_x*pixel_x) + (pixel_y*pixel_y)));
+    		img_out[x * height + y] = val;	
+    	}
+	}
 
 	return NULL;
 
@@ -64,7 +79,7 @@ int main(int argc, char* argv[]){
 	// Load input image with pointer and general info
 
     int width, height, channels;
-    unsigned char *img_in = stbi_load(img_path_in, &width, &height, &channels, 0);
+    unsigned char *img_in = stbi_load(img_path_in, &width, &height, &channels, 1);
     if(img_in == NULL) {
         printf("Error loading the image\n");
         return -1;
@@ -83,9 +98,9 @@ int main(int argc, char* argv[]){
 
 	struct pthread_args *args = (struct pthread_args *)malloc(sizeof(struct pthread_args));
 	args->img_in = img_in; 
-	args->img_out = img_out;   
-	args->channels = channels;
-	args->imgs_size = imgs_size;  
+	args->img_out = img_out;  
+	args->width = width; 
+	args->height = height;  
 	args->pthreads = number_pthreads; 
 
 	// Threads Logic
@@ -95,7 +110,6 @@ int main(int argc, char* argv[]){
 	pthread_t pthreads[number_pthreads];
 
 	for(int i = 0; i < number_pthreads; i++) {
-
 		i_pthreads[i] = i; 
 		args->pthread_number = i; 
 		error_pthread = pthread_create(&(pthreads[i]), NULL, proccess_image, (void*)args);
@@ -103,18 +117,15 @@ int main(int argc, char* argv[]){
 			printf("Error in thread creation \n");
 			return -1;
 		}
-
 	}
 
 	for(int j = 0; j < number_pthreads; j++) {
-
 		pthread_join(pthreads[j], NULL);
-	
     }
 
 	// Write jgp image out 
 
-	stbi_write_jpg(img_path_out, width, height, channels, img_out, 100);
+	stbi_write_png(img_path_out, width, height, CHANNEL_NUM, img_out, width*CHANNEL_NUM);
 
 	// Free from STB Library
 
