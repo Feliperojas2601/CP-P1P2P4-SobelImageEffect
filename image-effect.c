@@ -3,6 +3,7 @@
 #include<math.h>
 #include<stdlib.h>
 #include<unistd.h>
+#include <sys/time.h>
 
 // Declare STB_Image library
 
@@ -57,7 +58,6 @@ void* proccess_image(void *args) {
     		img_out[x*height+y] = val;	
     	}
 	}
-
 	return NULL;
 
 }
@@ -75,6 +75,7 @@ int main(int argc, char* argv[]){
     char* img_path_in = argv[1]; 
     char* img_path_out = argv[2]; 
     int number_pthreads = atoi(argv[3]); 
+    struct timeval tval_before, tval_after, tval_result;
 
 	// Load input image with pointer and general info
 
@@ -104,6 +105,7 @@ int main(int argc, char* argv[]){
 	int error_pthread;
 	pthread_t pthreads[number_pthreads];
 
+  	gettimeofday(&tval_before, NULL);
 	for(int i = 0; i < number_pthreads; i++) {
 		i_pthreads[i] = i; 
 		args_array[i].img_in = img_in; 
@@ -122,6 +124,10 @@ int main(int argc, char* argv[]){
 	for(int j = 0; j < number_pthreads; j++) {
 		pthread_join(pthreads[j], NULL);
     }
+    
+    gettimeofday(&tval_after, NULL);
+    timersub(&tval_after, &tval_before, &tval_result);
+    printf("Time elapsed: %ld.%06ld seconds\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
 
 	// Write jgp image out 
 
