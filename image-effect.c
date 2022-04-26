@@ -58,9 +58,6 @@ void* proccess_image(void *args) {
     		img_out[x*height+y] = val;	
     	}
 	}
-	
-	printf("%d", pthread_number);
-
 	return NULL;
 
 }
