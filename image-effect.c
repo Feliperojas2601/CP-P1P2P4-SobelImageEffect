@@ -22,8 +22,8 @@ struct pthread_args {
 	int pthread_number;
 	int height; 
 	int width;   
-	char* img_in; 
-	char* img_out; 
+	uint8_t *img_in; 
+	uint8_t *img_out; 
 	int pthreads; 
 };  
 
@@ -34,8 +34,8 @@ void* proccess_image(void *args) {
 	int pthread_number = ((struct pthread_args*) args)->pthread_number;
 	int width = ((struct pthread_args*) args)->width; 
 	int height = ((struct pthread_args*) args)->height; 
-	char *img_in = ((struct pthread_args*) args)->img_in; 
-	char *img_out = ((struct pthread_args*) args)->img_out; 
+	uint8_t *img_in = ((struct pthread_args*) args)->img_in; 
+	uint8_t *img_out = ((struct pthread_args*) args)->img_out; 
 	int pthreads = ((struct pthread_args*) args)->pthreads; 
 
 	// Calculate division of image per thread 
@@ -54,7 +54,7 @@ void* proccess_image(void *args) {
     			      ((sobel_y[1][0]*img_in[x*height-1+y])+ (sobel_y[1][1]* img_in[x*height+y]) + (sobel_y[1][2] * img_in[x*height+1+y]))+
     			      ((sobel_y[2][0]*img_in[x*height-1+y+1])+ (sobel_y[2][1]* img_in[x*height+y+1]) + (sobel_y[2][2] * img_in[x*height+1+y+1]));
     		int val = ceil(sqrt((pixel_x*pixel_x) + (pixel_y*pixel_y)));
-    		img_out[x * height + y] = val;	
+    		img_out[x*height+y] = val;	
     	}
 	}
 
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]){
 	// Load input image with pointer and general info
 
     int width, height, channels;
-    unsigned char *img_in = stbi_load(img_path_in, &width, &height, &channels, 1);
+    uint8_t *img_in = stbi_load(img_path_in, &width, &height, &channels, 1);
     if(img_in == NULL) {
         printf("Error loading the image\n");
         return -1;
@@ -87,8 +87,8 @@ int main(int argc, char* argv[]){
 
 	// Declare size of images and use malloc to reserve memory of ouput image
 
-	size_t imgs_size = width * height * channels; 
-	unsigned char* img_out = malloc(imgs_size); 
+	size_t imgs_size = width * height; 
+	uint8_t *img_out = malloc(imgs_size); 
 	if(img_out == NULL) {
        printf("Unable to allocate memory for the gray image.\n");
        exit(1);
@@ -96,12 +96,7 @@ int main(int argc, char* argv[]){
 
 	// Instance struct for pthread_create 
 
-	struct pthread_args *args = (struct pthread_args *)malloc(sizeof(struct pthread_args));
-	args->img_in = img_in; 
-	args->img_out = img_out;  
-	args->width = width; 
-	args->height = height;  
-	args->pthreads = number_pthreads; 
+	struct pthread_args args_array[number_pthreads];
 
 	// Threads Logic
 
@@ -111,8 +106,13 @@ int main(int argc, char* argv[]){
 
 	for(int i = 0; i < number_pthreads; i++) {
 		i_pthreads[i] = i; 
-		args->pthread_number = i; 
-		error_pthread = pthread_create(&(pthreads[i]), NULL, proccess_image, (void*)args);
+		args_array[i].img_in = img_in; 
+		args_array[i].img_out = img_out;  
+		args_array[i].width = width; 
+		args_array[i].height = height;  
+		args_array[i].pthreads = number_pthreads;
+		args_array[i].pthread_number = i_pthreads[i];
+		error_pthread = pthread_create(&(pthreads[i]), NULL, proccess_image, (void*)&args_array[i]);
 		if (error_pthread != 0) {
 			printf("Error in thread creation \n");
 			return -1;
