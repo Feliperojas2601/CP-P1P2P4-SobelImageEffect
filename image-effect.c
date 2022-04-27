@@ -66,7 +66,7 @@ void* proccess_image(void *args) {
 int main(int argc, char* argv[]){
 
 	// Receive Exe parameters, receive strings with pointers
-
+  
 	if (argc != 4) {
 		printf("Parameters Error \n");
 		return -1; 
@@ -76,6 +76,9 @@ int main(int argc, char* argv[]){
     char* img_path_out = argv[2]; 
     int number_pthreads = atoi(argv[3]); 
     struct timeval tval_before, tval_after, tval_result;
+    FILE * fPtr;
+    
+    fPtr = fopen("results.txt", "a");
 
 	// Load input image with pointer and general info
 
@@ -128,6 +131,7 @@ int main(int argc, char* argv[]){
     gettimeofday(&tval_after, NULL);
     timersub(&tval_after, &tval_before, &tval_result);
     printf("Time elapsed: %ld.%06ld seconds\n", (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
+    fprintf(fPtr, "%-12ld%-13d%ld.%06ld seconds\n", imgs_size, number_pthreads, (long int)tval_result.tv_sec, (long int)tval_result.tv_usec);
 
 	// Write jgp image out 
 
@@ -136,7 +140,8 @@ int main(int argc, char* argv[]){
 	// Free from STB Library
 
 	stbi_image_free(img_in); 
-	stbi_image_free(img_out); 
+	stbi_image_free(img_out);
+  fclose(fPtr);
 
   	return 0;
 
